@@ -1,0 +1,11 @@
+# Markdown to PDF:
+pandoc  --pdf-engine=xelatex -V mainfont="Lato" -V geometry:a4paper,margin=2cm input_file.md -o output_file.pdf
+
+pandoc -s --pdf-engine=xelatex -V header-includes='\newfontfamily\cyrillicfont[Script=Cyrillic]{Courier}' -V geometry:a4paper,margin=2cm -o наколенка_com.pdf наколенка_com.html
+
+# HTML to PDF:
+pandoc --pdf-engine=xelatex -V colorlinks -V CJKmainfont="DejaVuSans" input_file.html -o output_file.pdf
+
+
+# HTML to DOCX:
+pandoc -s input.html -o output.docx

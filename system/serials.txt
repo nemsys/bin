@@ -1,0 +1,154 @@
+Gathering serial numbers of components...
+
+MOTHERBOARD SERIAL NUMBER:
+	Serial Number: L3HF81H00G3
+
+CPU ID:
+	ID: E9 06 08 00 FF FB EB BF
+
+RAM DATA:
+# dmidecode 3.3
+Getting SMBIOS data from sysfs.
+SMBIOS 3.0.0 present.
+
+Handle 0x0003, DMI type 16, 23 bytes
+Physical Memory Array
+	Location: System Board Or Motherboard
+	Use: System Memory
+	Error Correction Type: None
+	Maximum Capacity: 8 GB
+	Error Information Handle: Not Provided
+	Number Of Devices: 2
+
+Handle 0x0004, DMI type 17, 40 bytes
+Memory Device
+	Array Handle: 0x0003
+	Error Information Handle: Not Provided
+	Total Width: 64 bits
+	Data Width: 64 bits
+	Size: 4 GB
+	Form Factor: Row Of Chips
+	Set: None
+	Locator: ChannelA-DIMM0
+	Bank Locator: BANK 0
+	Type: LPDDR3
+	Type Detail: Synchronous Unbuffered (Unregistered)
+	Speed: 1867 MT/s
+	Manufacturer: Samsung
+	Serial Number: 00000000
+	Asset Tag: None
+	Part Number: K4E6E304EB-EGCF   
+	Rank: 2
+	Configured Memory Speed: 1867 MT/s
+	Minimum Voltage: Unknown
+	Maximum Voltage: Unknown
+	Configured Voltage: 1.2 V
+
+Handle 0x0005, DMI type 17, 40 bytes
+Memory Device
+	Array Handle: 0x0003
+	Error Information Handle: Not Provided
+	Total Width: 64 bits
+	Data Width: 64 bits
+	Size: 4 GB
+	Form Factor: Row Of Chips
+	Set: None
+	Locator: ChannelB-DIMM0
+	Bank Locator: BANK 2
+	Type: LPDDR3
+	Type Detail: Synchronous Unbuffered (Unregistered)
+	Speed: 1867 MT/s
+	Manufacturer: Samsung
+	Serial Number: 00000000
+	Asset Tag: None
+	Part Number: K4E6E304EB-EGCF   
+	Rank: 2
+	Configured Memory Speed: 1867 MT/s
+	Minimum Voltage: Unknown
+	Maximum Voltage: Unknown
+	Configured Voltage: 1.2 V
+
+
+DISK DATA:
+NAME        SERIAL
+nvme0n1     S35ENX0K122923
+├─nvme0n1p1 
+├─nvme0n1p2 
+├─nvme0n1p3 
+├─nvme0n1p4 
+├─nvme0n1p5 
+├─nvme0n1p6 
+├─nvme0n1p7 
+├─nvme0n1p8 
+└─nvme0n1p9 
+
+BATTERY DATA:
+POWER_SUPPLY_NAME=BAT0
+POWER_SUPPLY_TYPE=Battery
+POWER_SUPPLY_STATUS=Full
+POWER_SUPPLY_PRESENT=1
+POWER_SUPPLY_TECHNOLOGY=Li-poly
+POWER_SUPPLY_CYCLE_COUNT=1048
+POWER_SUPPLY_VOLTAGE_MIN_DESIGN=11520000
+POWER_SUPPLY_VOLTAGE_NOW=12779000
+POWER_SUPPLY_POWER_NOW=0
+POWER_SUPPLY_ENERGY_FULL_DESIGN=57020000
+POWER_SUPPLY_ENERGY_FULL=45280000
+POWER_SUPPLY_ENERGY_NOW=45280000
+POWER_SUPPLY_CAPACITY=100
+POWER_SUPPLY_CAPACITY_LEVEL=Full
+POWER_SUPPLY_MODEL_NAME=01AV430
+POWER_SUPPLY_MANUFACTURER=SMP
+POWER_SUPPLY_SERIAL_NUMBER= 1429
+
+CHASSIS SERIAL NUMBER:
+	Serial Number: PF0Z3M4H
+
+BIOS DATA:
+# dmidecode 3.3
+Getting SMBIOS data from sysfs.
+SMBIOS 3.0.0 present.
+
+Handle 0x000B, DMI type 0, 24 bytes
+BIOS Information
+	Vendor: LENOVO
+	Version: N1MET77W (1.62 )
+	Release Date: 02/15/2024
+	Address: 0xE0000
+	Runtime Size: 128 kB
+	ROM Size: 16 MB
+	Characteristics:
+		PCI is supported
+		PNP is supported
+		BIOS is upgradeable
+		BIOS shadowing is allowed
+		Boot from CD is supported
+		Selectable boot is supported
+		EDD is supported
+		3.5"/720 kB floppy services are supported (int 13h)
+		Print screen service is supported (int 5h)
+		8042 keyboard services are supported (int 9h)
+		Serial services are supported (int 14h)
+		Printer services are supported (int 17h)
+		CGA/mono video services are supported (int 10h)
+		ACPI is supported
+		USB legacy is supported
+		BIOS boot specification is supported
+		Targeted content distribution is supported
+		UEFI is supported
+	BIOS Revision: 1.62
+	Firmware Revision: 1.22
+
+Handle 0x0022, DMI type 13, 22 bytes
+BIOS Language Information
+	Language Description Format: Abbreviated
+	Installable Languages: 1
+		en-US
+	Currently Installed Language: en-US
+
+
+NETWORK ADAPTER MAC ADDRESSES:
+8c:16:45:18:94:a6
+40:a3:cc:65:d6:5f
+
+Serial numbers gathered.
