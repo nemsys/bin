@@ -1,0 +1,143 @@
+Gathering serial numbers of components...
+
+MOTHERBOARD SERIAL NUMBER:
+	Serial Number: 1ZSSK654FR8
+
+CPU ID:
+	ID: A9 06 03 00 FF FB EB BF
+
+RAM DATA:
+# dmidecode 3.5
+Getting SMBIOS data from sysfs.
+SMBIOS 2.7 present.
+
+Handle 0x0007, DMI type 16, 23 bytes
+Physical Memory Array
+	Location: System Board Or Motherboard
+	Use: System Memory
+	Error Correction Type: None
+	Maximum Capacity: 16 GB
+	Error Information Handle: Not Provided
+	Number Of Devices: 2
+
+Handle 0x0008, DMI type 17, 34 bytes
+Memory Device
+	Array Handle: 0x0007
+	Error Information Handle: Not Provided
+	Total Width: 64 bits
+	Data Width: 64 bits
+	Size: 4 GB
+	Form Factor: SODIMM
+	Set: None
+	Locator: ChannelA-DIMM0
+	Bank Locator: BANK 0
+	Type: DDR3
+	Type Detail: Synchronous
+	Speed: 1600 MT/s
+	Manufacturer: Hynix/Hyundai
+	Serial Number: 0919F44A
+	Asset Tag: None
+	Part Number: HMT451S6BFR8A-PB  
+	Rank: Unknown
+	Configured Memory Speed: 1600 MT/s
+
+Handle 0x0009, DMI type 17, 34 bytes
+Memory Device
+	Array Handle: 0x0007
+	Error Information Handle: Not Provided
+	Total Width: 64 bits
+	Data Width: 64 bits
+	Size: 8 GB
+	Form Factor: SODIMM
+	Set: None
+	Locator: ChannelB-DIMM0
+	Bank Locator: BANK 2
+	Type: DDR3
+	Type Detail: Synchronous
+	Speed: 1600 MT/s
+	Manufacturer: Hynix/Hyundai
+	Serial Number: 49773E9B
+	Asset Tag: None
+	Part Number: HMT41GS6AFR8A-PB  
+	Rank: Unknown
+	Configured Memory Speed: 1600 MT/s
+
+
+DISK DATA:
+NAME   SERIAL
+sda    S2R6NX0J750881X
+├─sda1 
+├─sda2 
+└─sda3 
+
+BATTERY DATA:
+POWER_SUPPLY_NAME=BAT0
+POWER_SUPPLY_TYPE=Battery
+POWER_SUPPLY_STATUS=Charging
+POWER_SUPPLY_PRESENT=1
+POWER_SUPPLY_TECHNOLOGY=Li-ion
+POWER_SUPPLY_CYCLE_COUNT=0
+POWER_SUPPLY_VOLTAGE_MIN_DESIGN=11100000
+POWER_SUPPLY_VOLTAGE_NOW=12550000
+POWER_SUPPLY_POWER_NOW=3852000
+POWER_SUPPLY_ENERGY_FULL_DESIGN=86580000
+POWER_SUPPLY_ENERGY_FULL=32000000
+POWER_SUPPLY_ENERGY_NOW=10070000
+POWER_SUPPLY_CAPACITY=31
+POWER_SUPPLY_CAPACITY_LEVEL=Normal
+POWER_SUPPLY_MODEL_NAME=45N1029
+POWER_SUPPLY_MANUFACTURER=LGC
+POWER_SUPPLY_SERIAL_NUMBER=15605
+
+CHASSIS SERIAL NUMBER:
+	Serial Number: R9YFDN6
+
+BIOS DATA:
+# dmidecode 3.5
+Getting SMBIOS data from sysfs.
+SMBIOS 2.7 present.
+
+Handle 0x000B, DMI type 0, 24 bytes
+BIOS Information
+	Vendor: LENOVO
+	Version: G2ETB6WW (2.76 )
+	Release Date: 06/11/2019
+	Address: 0xE0000
+	Runtime Size: 128 kB
+	ROM Size: 12 MB
+	Characteristics:
+		PCI is supported
+		PNP is supported
+		BIOS is upgradeable
+		BIOS shadowing is allowed
+		Boot from CD is supported
+		Selectable boot is supported
+		EDD is supported
+		3.5"/720 kB floppy services are supported (int 13h)
+		Print screen service is supported (int 5h)
+		8042 keyboard services are supported (int 9h)
+		Serial services are supported (int 14h)
+		Printer services are supported (int 17h)
+		CGA/mono video services are supported (int 10h)
+		ACPI is supported
+		USB legacy is supported
+		BIOS boot specification is supported
+		Targeted content distribution is supported
+		UEFI is supported
+	BIOS Revision: 2.76
+	Firmware Revision: 1.14
+
+Handle 0x002A, DMI type 13, 22 bytes
+BIOS Language Information
+	Language Description Format: Abbreviated
+	Installable Languages: 1
+		en-US
+	Currently Installed Language: en-US
+
+
+NETWORK ADAPTER MAC ADDRESSES:
+3c:97:0e:64:3e:1c
+6c:88:14:3e:9c:30
+6e:f1:89:cd:cc:f8
+
+Serial numbers gathered.
