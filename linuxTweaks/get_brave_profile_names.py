@@ -12,11 +12,11 @@ for f_path in files:
             data = json.load(f)
             # This is where custom names like "phoneiep" are usually stored
             name = data.get('profile', {}).get('name')
-            
-            # check the legacy name field if the first one is generic
+
+            # Backup: check the legacy name field if the first one is generic
             if not name or name == "Personal":
                 name = data.get('account_info', [{}])[0].get('full_name')
-            
+
             folder = f_path.split('/')[-2]
             print(f"{folder}: {name}")
         except Exception:
