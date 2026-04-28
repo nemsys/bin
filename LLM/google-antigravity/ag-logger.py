@@ -12,27 +12,42 @@ Saves clean, structured traces to .agents/log/ — zero extra AI tokens.
 SETUP (one-time)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. Add to ~/.bashrc.d/aliases.sh and reload:
+1. Add bash alias:
 
-   alias ag-phoneiep-log='HOME="/home/nemsys/Antigravity_Profiles/phoneiep/app_config" \\
-     antigravity \\
-     --user-data-dir="/home/nemsys/Antigravity_Profiles/phoneiep/browser_profile" \\
+alias ag-phoneiep-log='HOME="/home/nemsys/Antigravity_Profiles/phoneiep/app_config" \
+     antigravity \
+     --user-data-dir="/home/nemsys/Antigravity_Profiles/phoneiep/browser_profile" \
      --remote-debugging-port=9222'
 
-   ag-log() {
-     local profile="${1:?usage: ag-log <profile> <project_dir> <task>}"
-     local project="${2:?usage: ag-log <profile> <project_dir> <task>}"
-     local task="${3:-session}"
-     local session="ag-${profile}-${task}"
-     tmux new-session -d -s "$session" -x 220 -y 50
-     tmux send-keys -t "$session" "ag-${profile}-log $project" Enter
-     tmux split-window -h -t "$session"
-     tmux send-keys -t "$session" \\
-       "cd $project && uv run ~/bin/ag-logger.py --task $task" Enter
-     tmux attach-session -t "$session"
-   }
+2. Add next function to .bashrc and reload:
+   
+    # tmux helper — opens split pane with Antigravity + logger side by side
+    ag-log() {
+        local profile="${1:?usage: ag-log <profile> <project_dir> <task>}"
+        local project="${2:?usage: ag-log <profile> <project_dir> <task>}"
+        local task="${3:-session}"
+        local session="ag-${profile}-${task}"
 
-2. Copy to ~/bin/:   cp ag-logger.py ~/bin/
+        # Check if session already exists to avoid errors
+        if tmux has-session -t "$session" 2>/dev/null; then
+            tmux attach-session -t "$session"
+            return
+        fi
+
+        # Create session and first pane
+        tmux new-session -d -s "$session" -x 220 -y 50
+        tmux send-keys -t "$session:0.0" "ag-${profile}-log $project" Enter
+
+        # Split and run the logger in the second pane
+        tmux split-window -h -t "$session:0.0"
+        tmux send-keys -t "$session:0.1" "cd $project && uv run --script ag-logger.py --task $task" Enter
+
+        # Attach
+        tmux attach-session -t "$session"
+    }
+
+
+2. Copy to ~/.local/bin/:   cp ag-logger.py ~/.local/bin/
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 USAGE
@@ -67,7 +82,6 @@ import signal
 from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime, timezone
- 
 
 CDP_HOST = "localhost"
 CDP_PORT = 9222
