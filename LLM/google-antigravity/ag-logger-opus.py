@@ -71,7 +71,6 @@ EXTRACT_JS = r"""
   }
 
   function findChatRoot() {
-    // Look for the chat input placeholder
     for (const sel of [
       '[placeholder*="Ask anything"]',
       '[aria-placeholder*="Ask anything"]',
@@ -80,7 +79,6 @@ EXTRACT_JS = r"""
       const el = document.querySelector(sel);
       if (el) { const c = containerOf(el); if (c) return c; }
     }
-    // Text-match fallback
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT);
     let node;
     while ((node = walker.nextNode())) {
@@ -90,7 +88,7 @@ EXTRACT_JS = r"""
         if (c) return c;
       }
     }
-    return null;  // Return null instead of body to signal "not on chat page"
+    return null;
   }
 
   const chatRoot = findChatRoot();
@@ -103,7 +101,6 @@ EXTRACT_JS = r"""
     const clone = el.cloneNode(true);
     clone.querySelectorAll("style, script, link").forEach(t => t.remove());
     let txt = (clone.innerText || clone.textContent || "").trim();
-    // Strip any remaining CSS that leaked through
     txt = txt.replace(/\/\*[\s\S]*?\*\//g, "");
     txt = txt.replace(/@media\s*\([^)]*\)\s*\{[\s\S]*?\}\s*\}/g, "");
     txt = txt.replace(/\.[a-zA-Z_-]+\s*\{[^}]*\}/g, "");
@@ -111,35 +108,15 @@ EXTRACT_JS = r"""
     return txt.trim();
   }
 
-  // Read text even from hidden/collapsed containers
   function deepText(el) {
     const clone = el.cloneNode(true);
     clone.querySelectorAll("style, script, link").forEach(t => t.remove());
-    // Force visibility on cloned tree
     clone.style.cssText = "display:block!important;visibility:visible!important;overflow:visible!important;height:auto!important;max-height:none!important;";
     let txt = (clone.textContent || "").trim();
     txt = txt.replace(/\/\*[\s\S]*?\*\//g, "");
     txt = txt.replace(/@media\s*\([^)]*\)\s*\{[\s\S]*?\}\s*\}/g, "");
     txt = txt.replace(/\.[a-zA-Z_-]+\s*\{[^}]*\}/g, "");
     return txt.trim();
-  }
-
-  // Walk ancestors to find one preceded by a sibling button matching pattern
-  function findPrecedingButton(el, pattern, stop) {
-    let node = el.parentElement;
-    while (node && node !== stop) {
-      let sib = node.previousElementSibling;
-      while (sib) {
-        const tag = sib.tagName;
-        if (tag === "BUTTON" || tag === "DIV") {
-          const t = (sib.innerText || sib.textContent || "").trim().replace(/\n/g, " ");
-          if (pattern.test(t)) return { wrapper: node, button: sib, label: t };
-        }
-        sib = sib.previousElementSibling;
-      }
-      node = node.parentElement;
-    }
-    return null;
   }
 
   // ── Noise filter ───────────────────────────────────────────────────────
@@ -177,60 +154,94 @@ EXTRACT_JS = r"""
     if (!text || text.length < (minLen || 2)) return true;
     if (NOISE_EXACT.has(text)) return true;
     if (NOISE_RE.some(re => re.test(text))) return true;
-    // Reject if it looks like CSS (has { } with CSS properties)
     if (/\{[^}]*(?:border|margin|padding|color|font|display)\s*:/i.test(text)) return true;
     return false;
   }
 
-  // ── Extract turns ──────────────────────────────────────────────────────
-  const results = [];
-  const seenFp = new Set();
-  let seqIdx = 0;
+  // ── Extract turns in document order ────────────────────────────────────
+  //
+  // Single unified walk: collect ALL interesting elements, sort by DOM
+  // position, then classify. This guarantees correct ordering.
+  //
+  // Role classification uses the DOM structure confirmed from exports:
+  //
+  //   THOUGHT divs have class "opacity-70" on their leading-relaxed element
+  //   AGENT response divs do NOT have "opacity-70"
+  //
+  //   Thought:  div.isolate > button"Thought for Xs"
+  //                         > div.overflow-hidden > ... > div.leading-relaxed.select-text.opacity-70
+  //   Agent:    div.px-2.py-1 > div.leading-relaxed.select-text (no opacity-70)
+  //
+  //   Both can be siblings inside the same flex-col container.
 
-  function push(role, text, cls) {
-    // Clean icon font text artifacts
+  const items = [];  // {el, role, text}
+  const seenFp = new Set();
+
+  function addItem(role, text, el, cls) {
     text = text.replace(/alternate_email\s*content_copy/g, "").trim();
     text = text.replace(/chevron_right/g, "").trim();
     if (isNoise(text, role === "user" ? 1 : 4)) return;
     const fp = role + ":" + text.slice(0, 300);
     if (seenFp.has(fp)) return;
     seenFp.add(fp);
-    results.push({ role, text, _seq: seqIdx++, _cls: cls || "" });
+    items.push({ el, role, text, _cls: cls || "" });
   }
-
-  const THOUGHT_RE = /^Thought for \d/i;
-  const WORKED_RE = /^Worked for \d/i;
 
   // 1. USER messages
   for (const step of chatRoot.querySelectorAll('[data-testid="user-input-step"]')) {
     const inner = step.querySelector(".whitespace-pre-wrap");
-    if (inner) push("user", cleanText(inner), "user-input");
+    if (inner) addItem("user", cleanText(inner), step, "user-input");
   }
 
-  // 2. THOUGHT / AGENT response blocks (leading-relaxed.select-text)
+  // 2. THOUGHT / AGENT — all leading-relaxed.select-text blocks
+  //    Discriminator: thoughts have "opacity-70" in their classList
   for (const el of chatRoot.querySelectorAll("div.leading-relaxed.select-text")) {
     const text = cleanText(el);
     if (!text) continue;
 
-    const thoughtCtx = findPrecedingButton(el, THOUGHT_RE, chatRoot);
-    if (thoughtCtx) {
-      push("thought", text, "thought");
-      continue;
-    }
+    const hasOpacity70 = el.classList.contains("opacity-70") ||
+                         el.className.includes("opacity-70");
 
-    // Check if inside a "Worked for" collapsible but NOT inside a thought sub-section
-    const workedCtx = findPrecedingButton(el, WORKED_RE, chatRoot);
-    // If inside "Worked for" but not "Thought for", it could be a tool summary
-    // or intermediate agent content. Treat as agent.
-    push("agent", text, workedCtx ? "agent-worked" : "agent-top");
+    if (hasOpacity70) {
+      addItem("thought", text, el, "thought");
+    } else {
+      addItem("agent", text, el, "agent");
+    }
   }
 
-  // 3. TOOL CALLS — summary labels and inline references
-  // Tool summary buttons: "Explored 2 folders", "Ran command", "Viewed file", etc.
+  // 3. Hidden/collapsed thoughts (max-h-0 opacity-0)
+  //    Read via textContent even when visually hidden
+  const THOUGHT_RE = /^Thought for \d/i;
+  for (const btn of chatRoot.querySelectorAll("button")) {
+    const btnText = (btn.innerText || "").trim().replace(/\n/g, " ");
+    if (!THOUGHT_RE.test(btnText)) continue;
+    const isolate = btn.closest(".isolate");
+    if (!isolate) continue;
+    const hiddenDiv = isolate.querySelector(".overflow-hidden");
+    if (!hiddenDiv) continue;
+    // Check if it's actually collapsed (max-h-0 or opacity-0)
+    const cs = hiddenDiv.className || "";
+    if (cs.includes("max-h-0") || cs.includes("opacity-0")) {
+      const text = deepText(hiddenDiv);
+      if (text && text.length > 4) {
+        addItem("thought", text, hiddenDiv, "thought-hidden");
+      }
+    }
+  }
+
+  // 4. TOOL CALLS — buttons with action labels
   for (const btn of chatRoot.querySelectorAll("button")) {
     const t = (btn.innerText || "").trim().replace(/\n/g, " ");
     if (/^(Explored|Ran|Viewed|Analyzed|Created|Edited|Searched|Generated|Navigat)/i.test(t)) {
-      push("tool_call", t, "tool-btn");
+      addItem("tool_call", t, btn, "tool-btn");
+    }
+  }
+
+  // Tool detail blocks (items-baseline)
+  for (const el of chatRoot.querySelectorAll(".flex.items-baseline")) {
+    const t = (el.innerText || "").trim().replace(/\n/g, " ");
+    if (/^(Ran |Viewed |Edited )/.test(t)) {
+      addItem("tool_call", t, el, "tool-detail");
     }
   }
 
@@ -240,35 +251,24 @@ EXTRACT_JS = r"""
     ".inline-flex.leading-tight.select-text"
   )) {
     const t = cleanText(el);
-    if (t && t.length > 2) push("tool_call", t, "tool-ref");
+    if (t && t.length > 2) addItem("tool_call", t, el, "tool-ref");
   }
 
-  // Tool detail blocks (items-baseline = "Ran command" details, etc.)
-  for (const el of chatRoot.querySelectorAll(".flex.items-baseline")) {
-    const t = (el.innerText || "").trim().replace(/\n/g, " ");
-    if (t.startsWith("Ran ") || t.startsWith("Viewed ") || t.startsWith("Edited ")) {
-      push("tool_call", t, "tool-detail");
-    }
-  }
+  // ── Sort by DOM position ──────────────────────────────────────────────
+  // compareDocumentPosition bit 4 = DOCUMENT_POSITION_FOLLOWING
+  items.sort((a, b) => {
+    if (a.el === b.el) return 0;
+    const pos = a.el.compareDocumentPosition(b.el);
+    return (pos & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : 1;
+  });
 
-  // 4. Read hidden/collapsed thought content that may not be in leading-relaxed
-  // Look for overflow-hidden containers preceded by "Thought for" buttons
-  for (const btn of chatRoot.querySelectorAll("button")) {
-    const btnText = (btn.innerText || "").trim().replace(/\n/g, " ");
-    if (!THOUGHT_RE.test(btnText)) continue;
-    // The content container is usually the next sibling or inside the parent
-    let contentEl = btn.nextElementSibling;
-    if (!contentEl) {
-      const parent = btn.parentElement;
-      if (parent) contentEl = parent.querySelector(".overflow-hidden, .px-2.py-1");
-    }
-    if (contentEl) {
-      const text = deepText(contentEl);
-      if (text && text.length > 4) {
-        push("thought", text, "thought-hidden");
-      }
-    }
-  }
+  // Build final results with sequence numbers
+  const results = items.map((item, idx) => ({
+    role: item.role,
+    text: item.text,
+    _seq: idx,
+    _cls: item._cls,
+  }));
 
   return JSON.stringify(results);
 })();
@@ -391,18 +391,30 @@ class SessionLogger:
         if len(turns) == 1 and turns[0].get("role") == "_no_chat":
             return
 
-        # Build active fingerprint set
+        # Build active fingerprint set AND a map from fp → latest _seq
         active: set[str] = set()
+        seq_map: dict[str, int] = {}
         for t in turns:
             text = (t.get("text") or "").strip()
             role = t.get("role", "unknown")
             if text:
-                active.add(self._fp(role, text))
+                fp = self._fp(role, text)
+                active.add(fp)
+                seq_map[fp] = t.get("_seq", 0)
 
         # Purge pending that disappeared (text changed mid-stream)
         for fp in list(self._pending.keys()):
             if fp not in active:
                 del self._pending[fp]
+
+        # Update _seq on all already-committed turns to reflect current DOM order
+        for existing in self._turns:
+            et = existing.get("text", "").strip()
+            er = existing.get("role", "unknown")
+            if et:
+                efp = self._fp(er, et)
+                if efp in seq_map:
+                    existing["_seq"] = seq_map[efp]
 
         newly_committed = False
         for turn in turns:
@@ -419,6 +431,8 @@ class SessionLogger:
                     turn={**turn, "captured_at": datetime.now(timezone.utc).isoformat()}
                 )
             else:
+                # Update _seq to latest DOM position on every poll
+                self._pending[fp].turn["_seq"] = turn.get("_seq", 0)
                 self._pending[fp].count += 1
                 if self._pending[fp].count >= self.stabilize:
                     committed = self._pending.pop(fp)
