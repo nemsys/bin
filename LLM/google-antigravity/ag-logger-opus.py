@@ -132,8 +132,6 @@ EXTRACT_JS = r"""
     /^Gemini \d/i,
     /^Claude /i,
     /^(Worked|Thought) for \d/i,
-    /^Explored \d/i,
-    /^Analyzed /i,
     /^\d+ Files? With Changes\s*$/,
     /^[+-]\d+\s*$/,
     /^\+\d+ -\d+$/,
@@ -177,10 +175,10 @@ EXTRACT_JS = r"""
   const items = [];  // {el, role, text}
   const seenFp = new Set();
 
-  function addItem(role, text, el, cls) {
+  function addItem(role, text, el, cls, skipNoise) {
     text = text.replace(/alternate_email\s*content_copy/g, "").trim();
     text = text.replace(/chevron_right/g, "").trim();
-    if (isNoise(text, role === "user" ? 1 : 4)) return;
+    if (!skipNoise && isNoise(text, role === "user" ? 1 : 4)) return;
     const fp = role + ":" + text.slice(0, 300);
     if (seenFp.has(fp)) return;
     seenFp.add(fp);
@@ -233,7 +231,7 @@ EXTRACT_JS = r"""
   for (const btn of chatRoot.querySelectorAll("button")) {
     const t = (btn.innerText || "").trim().replace(/\n/g, " ");
     if (/^(Explored|Ran|Viewed|Analyzed|Created|Edited|Searched|Generated|Navigat)/i.test(t)) {
-      addItem("tool_call", t, btn, "tool-btn");
+      addItem("tool_call", t, btn, "tool-btn", true);
     }
   }
 
@@ -366,6 +364,7 @@ class SessionLogger:
         self._seen: set[str] = set()
         self._turns: list[dict] = []
         self._pending: dict[str, _Pending] = {}
+        self._commit_counter: int = 0
         self._write_header(task, project)
         print(f"[\u2713] Logging to: {self.path}")
 
@@ -407,14 +406,7 @@ class SessionLogger:
             if fp not in active:
                 del self._pending[fp]
 
-        # Update _seq on all already-committed turns to reflect current DOM order
-        for existing in self._turns:
-            et = existing.get("text", "").strip()
-            er = existing.get("role", "unknown")
-            if et:
-                efp = self._fp(er, et)
-                if efp in seq_map:
-                    existing["_seq"] = seq_map[efp]
+        # (Removed: no longer update _seq on committed turns — use stable _commit_seq)
 
         newly_committed = False
         for turn in turns:
@@ -431,11 +423,11 @@ class SessionLogger:
                     turn={**turn, "captured_at": datetime.now(timezone.utc).isoformat()}
                 )
             else:
-                # Update _seq to latest DOM position on every poll
-                self._pending[fp].turn["_seq"] = turn.get("_seq", 0)
                 self._pending[fp].count += 1
                 if self._pending[fp].count >= self.stabilize:
                     committed = self._pending.pop(fp)
+                    committed.turn["_commit_seq"] = self._commit_counter
+                    self._commit_counter += 1
                     self._seen.add(fp)
 
                     # Superset dedup: replace shorter subset turns
@@ -488,7 +480,7 @@ class SessionLogger:
             lines.append("# Antigravity Session Trace\n\n---\n")
 
         # Sort turns by sequence number if available
-        sorted_turns = sorted(self._turns, key=lambda t: t.get("_seq", 0))
+        sorted_turns = sorted(self._turns, key=lambda t: t.get("_commit_seq", 0))
 
         for t in sorted_turns:
             role = t.get("role", "unknown")
