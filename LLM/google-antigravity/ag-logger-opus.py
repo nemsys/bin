@@ -4,7 +4,7 @@
 # dependencies = ["websockets>=12.0", "aiohttp>=3.9"]
 # ///
 """
-ag-logger-opus: Antigravity session logger v4
+ag-logger-opus: Antigravity session logger v5
 Captures all agent chat messages (user, thoughts, tool calls, agent responses)
 via Chrome DevTools Protocol. Saves structured traces to .agents/log/.
 
@@ -14,6 +14,7 @@ Fixes from previous versions:
   - Reads hidden collapsible content without clicking
   - Better dedup, ordered output
   - Skips non-chat pages (project picker, etc.)
+  - v5: Monotonic commit ordering (fixes _seq drift between polls)
 
 Usage:
   uv run --script ag-logger-opus.py [task] [profile] [project_dir]
@@ -364,6 +365,7 @@ class SessionLogger:
         self._seen: set[str] = set()
         self._turns: list[dict] = []
         self._pending: dict[str, _Pending] = {}
+        self._next_order: int = 0
         self._write_header(task, project)
         print(f"[\u2713] Logging to: {self.path}")
 
@@ -405,19 +407,13 @@ class SessionLogger:
             if fp not in active:
                 del self._pending[fp]
 
-        # Update _seq on all already-committed turns to reflect current DOM order.
-        # This is essential: as new elements appear in the DOM, positions shift.
-        # We must keep committed turns' _seq in sync so newly committed items
-        # can be placed correctly relative to them.
-        for existing in self._turns:
-            et = existing.get("text", "").strip()
-            er = existing.get("role", "unknown")
-            if et:
-                efp = self._fp(er, et)
-                if efp in seq_map:
-                    existing["_seq"] = seq_map[efp]
+        # NOTE: We intentionally do NOT update _seq on already-committed turns.
+        # Doing so causes ordering drift: DOM positions shift as new elements
+        # arrive, making previously-correct orderings wrong. Instead, each
+        # committed turn gets a stable monotonic _commit_order.
 
-        newly_committed = False
+        # Phase 1: Update pending entries and collect newly committed turns
+        batch_committed: list[dict] = []
         for turn in turns:
             text = (turn.get("text") or "").strip()
             role = turn.get("role", "unknown")
@@ -438,40 +434,52 @@ class SessionLogger:
                 if self._pending[fp].count >= self.stabilize:
                     committed = self._pending.pop(fp)
                     self._seen.add(fp)
+                    batch_committed.append(committed.turn)
 
-                    # Superset dedup: replace shorter subset turns
-                    replaced = False
-                    for i, existing in enumerate(self._turns):
-                        et = existing.get("text", "").strip()
-                        er = existing.get("role", "")
-                        if er == role and et and et in text and et != text:
-                            self._turns[i] = committed.turn
-                            replaced = True
-                            snippet = text[:60].replace("\n", " ")
-                            icon = ROLE_ICONS.get(role, "\u2753")
-                            print(f"  [\u21ba] {icon} {role.upper()} (replaced): {snippet}\u2026")
-                            break
+        if not batch_committed:
+            return
 
-                    if not replaced:
-                        # Skip if this text is a subset of an existing turn
-                        is_subset = False
-                        for existing in self._turns:
-                            et = existing.get("text", "").strip()
-                            er = existing.get("role", "")
-                            if er == role and text in et and text != et:
-                                is_subset = True
-                                break
+        # Phase 2: Sort batch by DOM position (_seq) so intra-batch
+        # ordering is correct, then assign stable monotonic _commit_order.
+        batch_committed.sort(key=lambda t: t.get("_seq", 0))
 
-                        if not is_subset:
-                            self._turns.append(committed.turn)
-                            snippet = text[:60].replace("\n", " ")
-                            icon = ROLE_ICONS.get(role, "\u2753")
-                            print(f"  [+] {icon} {role.upper()}: {snippet}\u2026")
+        for turn in batch_committed:
+            text = (turn.get("text") or "").strip()
+            role = turn.get("role", "unknown")
 
-                    newly_committed = True
+            # Superset dedup: replace shorter subset turns
+            replaced = False
+            for i, existing in enumerate(self._turns):
+                et = existing.get("text", "").strip()
+                er = existing.get("role", "")
+                if er == role and et and et in text and et != text:
+                    turn["_commit_order"] = existing["_commit_order"]  # keep position
+                    self._turns[i] = turn
+                    replaced = True
+                    snippet = text[:60].replace("\n", " ")
+                    icon = ROLE_ICONS.get(role, "\u2753")
+                    print(f"  [\u21ba] {icon} {role.upper()} (replaced): {snippet}\u2026")
+                    break
 
-        if newly_committed:
-            self._flush()
+            if not replaced:
+                # Skip if this text is a subset of an existing turn
+                is_subset = False
+                for existing in self._turns:
+                    et = existing.get("text", "").strip()
+                    er = existing.get("role", "")
+                    if er == role and text in et and text != et:
+                        is_subset = True
+                        break
+
+                if not is_subset:
+                    turn["_commit_order"] = self._next_order
+                    self._next_order += 1
+                    self._turns.append(turn)
+                    snippet = text[:60].replace("\n", " ")
+                    icon = ROLE_ICONS.get(role, "\u2753")
+                    print(f"  [+] {icon} {role.upper()}: {snippet}\u2026")
+
+        self._flush()
 
     def _flush(self):
         lines: list[str] = []
@@ -488,8 +496,8 @@ class SessionLogger:
         except Exception:
             lines.append("# Antigravity Session Trace\n\n---\n")
 
-        # Sort turns by sequence number if available
-        sorted_turns = sorted(self._turns, key=lambda t: t.get("_seq", 0))
+        # Sort turns by stable commit order (monotonic, assigned at commit time)
+        sorted_turns = sorted(self._turns, key=lambda t: t.get("_commit_order", 0))
 
         for t in sorted_turns:
             role = t.get("role", "unknown")
